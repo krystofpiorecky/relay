@@ -1,0 +1,45 @@
+.titlebar {
+  height: 48px;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  -webkit-user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.titlebar-drag-region {
+  -webkit-app-region: drag;    /* draggable area */
+  height: 100%;
+  flex: 1;
+}
+
+.titlebar-buttons {
+  margin-right: 5px;
+  display: flex;
+  -webkit-app-region: no-drag; /* buttons must NOT be draggable */
+}
+
+.titlebar-buttons button {
+  width: 46px;
+  height: 38px;
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+
+.titlebar-buttons button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.titlebar-buttons .close:hover {
+  background: #e81123; /* Windows close button color */
+  color: white;
+}
