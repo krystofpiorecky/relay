@@ -1,4 +1,4 @@
-import { readJSON } from "@s_utilities/file";
+import { readJSON } from "@_utilities/file";
 import http from "http";
 import { join } from "path";
 import url from "url";

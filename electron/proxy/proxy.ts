@@ -29,7 +29,12 @@ const CONFIG = getSetupConfig();
 //   return join(cacheDir, instanceKey, parts.join("/") + ".json");
 // };
 
-export const proxy = async () => {
+const REQUEST_LIST: any[] = [];
+
+export const proxy = async (feed: (data: any[]) => void) => {
+  const updateFeed = () =>
+    feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
+  
   // const cookiesFile = join(process.cwd(), "remote", "proxy", "cookies.json");
   // TODO: check cookie expires date
   // TODO: handle unset cookie header
@@ -67,6 +72,24 @@ export const proxy = async () => {
       if (handleRedirect(instance, req, res)) return;
 
       const requestUrl = url.parse(req.url || "", true).pathname;
+      const feedItem = {
+        proxy: {
+          name: instance.key,
+          icon: "mingcute:cat-fill"
+        },
+        url: {
+          pathname: url.parse(req.url || "", true).pathname,
+          search: url.parse(req.url || "", true).search
+        },
+        configs: 4,
+        request: {
+          timestamp: Date.now()
+        },
+        req,
+        res
+      };
+      REQUEST_LIST.push(feedItem);
+      updateFeed();
 
       const config = getConfig(instance.key, requestUrl);
       if (config.delay > 0)
@@ -76,7 +99,9 @@ export const proxy = async () => {
         console.log(`[${instance.key} > ${requestUrl}] ${config.cache.read ? "CACHE-R" : ""}`);
       }
 
-      if (await handleCacheRead(instance, config, req, res)) return;
+      if (await handleCacheRead(instance, config, req, res)) {
+        return;
+      }
 
       proxy.web(req, res, { selfHandleResponse: true });
     }).listen(instance.port);
@@ -91,6 +116,19 @@ export const proxy = async () => {
     proxy.on("proxyRes", (proxyRes, req, res) => collectResponse(proxyRes, req, res, async data => {
       const requestUrl = url.parse(req.url || "", true).pathname;
       const config = getConfig(instance.key, requestUrl);
+
+      const feedItem = REQUEST_LIST.find(item => item.req === req);
+      if (feedItem) {
+        feedItem.response = {
+          timestamp: Date.now(),
+          status: proxyRes.statusCode ?? 600,
+          size: 1
+        };
+        updateFeed();
+      }
+      else {
+        console.log("no request item found");
+      }
 
       if (instance.log) {
         console.log(`[${instance.key} < ${requestUrl}] ${config.cache.write ? "CACHE-W" : ""}`);
@@ -107,6 +145,29 @@ export const proxy = async () => {
       res.writeHead(proxyRes.statusCode ?? 200);
 
       res.end(sendBody);
-    }));
+    }, 
+      async (proxyRes, req) => {
+        const feedItem = REQUEST_LIST.find(item => item.req === req);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        }
+      },
+      async (proxyRes, req) => {
+        const feedItem = REQUEST_LIST.find(item => item.req === req);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        }
+      }
+    ));
   }
 };

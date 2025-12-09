@@ -1,5 +1,5 @@
-import { globToRegex } from "@s_utilities/glob";
-import { deepMerge, objectEntries, RecursivePartial } from "@s_utilities/object";
+import { globToRegex } from "@_utilities/glob";
+import { deepMerge, objectEntries, RecursivePartial } from "@_utilities/object";
 
 const config = {"default":{"target":"skinsearch.dev","cache":{"write":true,"read":false}},"main":{"port":9991,"log":true,"endpoints":[{"paths":"/feed, /api/feed, /api/ac","cache":false},{"paths":"/api/item/*","cache":{"read":false}},{"paths":"/api/inventory/"}]},"s3":{"target":"s3.skinsearch.com","port":9992,"cache":false},"status":{"prefix":"status","port":9993},"watchlist":{"prefix":"watchlist","port":9994,"log":true}} as unknown as ConfigFileSchema | undefined;
 

@@ -114,4 +114,4 @@ ipcMain.handle("toggle-maximize", () => {
 
 app.whenReady().then(createWindow)
 
-proxy();
+proxy(data => win?.webContents.send("proxy:feed", data));

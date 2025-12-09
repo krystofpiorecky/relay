@@ -1,5 +1,6 @@
 import { Icon } from "@iconify/react";
 import "./Feed.scss";
+import { useEffect, useState } from "react";
 
 type ProxyInfoSchema = {
   name: string,
@@ -110,9 +111,31 @@ const items: FeedItemSchema[] = [{
   }
 }];
 
+const useBridgeState = <T extends any>(key: string, d: T): T => {
+  const [ data, setData ] = useState(d);
+
+  useEffect(() => {
+    const ipc = (window as any).ipcRenderer;
+
+    const listener = (_: any, state: T) => setData(state);
+    ipc.on(key, listener);
+    return () => ipc.off(key, listener);
+  }, []);
+
+  return data;
+};
+
 export const Feed = () => {
+  const bridgeItems = useBridgeState<FeedItemSchema[]>("proxy:feed", []);
+
+  const filteredItems = bridgeItems
+    .filter(item => item.proxy.name !== "s3");
+  
+  const sortedItems = filteredItems
+    .sort((a, b) => b.request.timestamp - a.request.timestamp);
+
   return <div className="feed">
-    {items.map((item, index) => <div className="item" key={index}>
+    {sortedItems.map((item, index) => <div className="item" key={index}>
       <FeedItemStatus {...item} />
       <div className="url">
         <span className="proxy">

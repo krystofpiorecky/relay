@@ -2272,12 +2272,13 @@ const handleCacheRead = async (instance, config2, req, res) => {
   res.end(JSON.stringify(data));
   return true;
 };
-const collectResponse = (proxyRes, req, res, callback) => {
+const collectResponse = (proxyRes, req, res, callback, redirectCallback, nonJsonCallback) => {
   const status = proxyRes.statusCode ?? 200;
   if ([301, 302, 307, 308].includes(status)) {
     setFullHeaders(req, res);
     res.writeHead(status, proxyRes.headers);
     res.end();
+    redirectCallback(proxyRes, req);
     return;
   }
   const chunks = [];
@@ -2288,6 +2289,7 @@ const collectResponse = (proxyRes, req, res, callback) => {
       setFullHeaders(req, res);
       res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
       res.end(Buffer.concat(chunks));
+      nonJsonCallback(proxyRes, req);
       return;
     }
     const content = Buffer.concat(chunks).toString("utf8");
@@ -2295,7 +2297,9 @@ const collectResponse = (proxyRes, req, res, callback) => {
   });
 };
 const CONFIG = getSetupConfig();
-const proxy = async () => {
+const REQUEST_LIST = [];
+const proxy = async (feed) => {
+  const updateFeed = () => feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
   for (const instance of CONFIG.instances) {
     console.log(`Launching proxy ${instance.target}::${instance.port}`);
     const proxy2 = httpProxy$1.createProxyServer({
@@ -2309,13 +2313,33 @@ const proxy = async () => {
       if (handleOptions(req, res)) return;
       if (handleRedirect(instance, req, res)) return;
       const requestUrl = url$2.parse(req.url || "", true).pathname;
+      const feedItem = {
+        proxy: {
+          name: instance.key,
+          icon: "mingcute:cat-fill"
+        },
+        url: {
+          pathname: url$2.parse(req.url || "", true).pathname,
+          search: url$2.parse(req.url || "", true).search
+        },
+        configs: 4,
+        request: {
+          timestamp: Date.now()
+        },
+        req,
+        res
+      };
+      REQUEST_LIST.push(feedItem);
+      updateFeed();
       const config2 = getConfig(instance.key, requestUrl);
       if (config2.delay > 0)
         await new Promise((r) => setTimeout(r, config2.delay));
       if (instance.log) {
         console.log(`[${instance.key} > ${requestUrl}] ${config2.cache.read ? "CACHE-R" : ""}`);
       }
-      if (await handleCacheRead(instance, config2, req, res)) return;
+      if (await handleCacheRead(instance, config2, req, res)) {
+        return;
+      }
       proxy2.web(req, res, { selfHandleResponse: true });
     }).listen(instance.port);
     proxy2.on("proxyReq", (proxyReq) => {
@@ -2324,19 +2348,57 @@ const proxy = async () => {
       proxyReq.setHeader("referer", target);
       proxyReq.removeHeader("accept-encoding");
     });
-    proxy2.on("proxyRes", (proxyRes, req, res) => collectResponse(proxyRes, req, res, async (data) => {
-      const requestUrl = url$2.parse(req.url || "", true).pathname;
-      const config2 = getConfig(instance.key, requestUrl);
-      if (instance.log) {
-        console.log(`[${instance.key} < ${requestUrl}] ${config2.cache.write ? "CACHE-W" : ""}`);
+    proxy2.on("proxyRes", (proxyRes, req, res) => collectResponse(
+      proxyRes,
+      req,
+      res,
+      async (data) => {
+        const requestUrl = url$2.parse(req.url || "", true).pathname;
+        const config2 = getConfig(instance.key, requestUrl);
+        const feedItem = REQUEST_LIST.find((item) => item.req === req);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        } else {
+          console.log("no request item found");
+        }
+        if (instance.log) {
+          console.log(`[${instance.key} < ${requestUrl}] ${config2.cache.write ? "CACHE-W" : ""}`);
+        }
+        const sendBody = JSON.stringify(data);
+        copyHeaders(proxyRes, res);
+        setResponseHeaders(proxyRes, req, res);
+        res.setHeader("content-length", Buffer.byteLength(sendBody));
+        res.writeHead(proxyRes.statusCode ?? 200);
+        res.end(sendBody);
+      },
+      async (proxyRes2, req2) => {
+        const feedItem = REQUEST_LIST.find((item) => item.req === req2);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes2.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        }
+      },
+      async (proxyRes2, req2) => {
+        const feedItem = REQUEST_LIST.find((item) => item.req === req2);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes2.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        }
       }
-      const sendBody = JSON.stringify(data);
-      copyHeaders(proxyRes, res);
-      setResponseHeaders(proxyRes, req, res);
-      res.setHeader("content-length", Buffer.byteLength(sendBody));
-      res.writeHead(proxyRes.statusCode ?? 200);
-      res.end(sendBody);
-    }));
+    ));
   }
 };
 createRequire(import.meta.url);
@@ -2413,7 +2475,7 @@ ipcMain.handle("toggle-maximize", () => {
   }
 });
 app.whenReady().then(createWindow);
-proxy();
+proxy((data) => win == null ? void 0 : win.webContents.send("proxy:feed", data));
 export {
   MAIN_DIST,
   RENDERER_DIST,

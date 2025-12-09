@@ -1,8 +1,15 @@
-import { safeParse } from "@s_utilities/file";
+import { safeParse } from "@_utilities/file";
 import http from "http";
 import { setFullHeaders } from "./headers";
 
-export const collectResponse = (proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse, callback: (data: any) => Promise<void>) => {
+export const collectResponse = (
+  proxyRes: http.IncomingMessage,
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  callback: (data: any) => Promise<void>,
+  redirectCallback: (proxyRes: http.IncomingMessage, req: http.IncomingMessage) => Promise<void>,
+  nonJsonCallback: (proxyRes: http.IncomingMessage, req: http.IncomingMessage) => Promise<void>
+) => {
   const status = proxyRes.statusCode ?? 200;
   
   // redirect
@@ -10,6 +17,7 @@ export const collectResponse = (proxyRes: http.IncomingMessage, req: http.Incomi
     setFullHeaders(req, res);
     res.writeHead(status, proxyRes.headers);
     res.end();
+    redirectCallback(proxyRes, req);
     return;
   }
   
@@ -22,6 +30,7 @@ export const collectResponse = (proxyRes: http.IncomingMessage, req: http.Incomi
       setFullHeaders(req, res);
       res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
       res.end(Buffer.concat(chunks));
+      nonJsonCallback(proxyRes, req);
       return;
     }
 
