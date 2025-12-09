@@ -21,7 +21,8 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "@components/*": ["./src/components/*"]
+      "@components/*": ["./src/components/*"],
+      "@s_utilities/*": ["./electron/utilities/*"]
     }
   },
   "include": ["src", "electron"],

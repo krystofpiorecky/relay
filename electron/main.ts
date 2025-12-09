@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { proxy } from './proxy/proxy'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -112,3 +113,5 @@ ipcMain.handle("toggle-maximize", () => {
 });
 
 app.whenReady().then(createWindow)
+
+proxy();
