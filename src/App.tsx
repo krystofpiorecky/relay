@@ -1,5 +1,6 @@
+import { Feed } from '@components/Feed'
+import { Titlebar } from '@components/Titlebar'
 import './App.css'
-import { Titlebar } from './components/Titlebar/Titlebar'
 
 function App() {
   return <>
@@ -8,9 +9,7 @@ function App() {
       <section>
         nav
       </section>
-      <section>
-        main
-      </section>
+      <Feed />
       <section>
         detail
       </section>
