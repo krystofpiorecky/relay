@@ -10,9 +10,6 @@ function App() {
         nav
       </section>
       <Feed />
-      <section>
-        detail
-      </section>
     </main>
   </>
 }

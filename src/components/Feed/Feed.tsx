@@ -48,28 +48,97 @@ const useBridgeState = <T extends any>(key: string, d: T): T => {
 
 export const Feed = () => {
   const bridgeItems = useBridgeState<FeedItemSchema[]>("proxy:feed", []);
+  const [ activeItem, setActiveItem ] = useState<FeedItemSchema>();
 
   const filteredItems = bridgeItems
     .filter(item => item.proxy.name !== "s3");
   
   const sortedItems = filteredItems
     .sort((a, b) => b.request.timestamp - a.request.timestamp);
+  
+  const toggleItem = (item: FeedItemSchema) => {
+    if (item === activeItem) setActiveItem(undefined);
+    else setActiveItem(item);
+  };
 
   return <div className="feed">
-    {sortedItems.map((item, index) => <div className="item" key={index}>
-      <FeedItemStatus {...item} />
-      <div className="url">
+    <div className="items">
+      {sortedItems.map((item, index) => 
+        <div className="item" key={index} onClick={() => toggleItem(item)} data-active={item === activeItem}>
+          <FeedItemStatus {...item} />
+          <div className="url">
+            <span className="proxy">
+              {item.proxy.name}
+            </span>
+            <span className="pathname">
+              {item.url.pathname}
+            </span>
+            <span className="search">
+              {item.url.search}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+    {activeItem && <div className="detail">
+      <div className="badges">
+        <FeedItemStatus {...activeItem} />
         <span className="proxy">
-          {item.proxy.name}
-        </span>
-        <span className="pathname">
-          {item.url.pathname}
-        </span>
-        <span className="search">
-          {item.url.search}
+          {activeItem.proxy.name}
         </span>
       </div>
-    </div>)}
+      <h2>
+        <span className="pathname">
+          {activeItem.url.pathname}
+        </span>
+        <span className="search">
+          {activeItem.url.search}
+        </span>
+      </h2>
+      <div className="route">
+        <div className="item">
+          <Icon icon="mingcute:arrow-to-right-fill" />
+          <div>
+            <div className="name">Received request</div>
+          </div>
+        </div>
+        <div className="item">
+          <Icon icon="mingcute:arrows-right-fill" />
+          <div>
+            <div className="name">Sent request to target</div>
+            <div className="fullUrl">https://example.com{activeItem.url.pathname}{activeItem.url.search}</div>
+          </div>
+        </div>
+        <div className="item">
+          <Icon icon="mingcute:arrows-left-fill" />
+          <div>
+            <div className="name">Received response</div>
+            <div className="snippet"></div>
+          </div>
+        </div>
+        <div className="item">
+          <Icon icon="mingcute:save-2-fill" />
+          <div>
+            <div className="name">Saved response to cache</div>
+            <div className="fullUrl">D:/example{activeItem.url.pathname}</div>
+          </div>
+        </div>
+        <div className="item">
+          <Icon icon="mingcute:transfer-fill" />
+          <div>
+            <div className="name">Transformed: inventory</div>
+            <div className="snippet"></div>
+          </div>
+        </div>
+        <div className="item">
+          <Icon icon="mingcute:align-arrow-left-fill" />
+          <div>
+            <div className="name">Sent response to client</div>
+            <div className="snippet"></div>
+          </div>
+        </div>
+      </div>
+    </div>}
   </div>
 }
 

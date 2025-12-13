@@ -2080,8 +2080,8 @@ var httpProxy$2 = ProxyServer;
  *          
  *          Dante - The Divine Comedy (Canto III)
  */
-var httpProxy$1 = httpProxy$2;
-const httpProxy = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy$1);
+var httpProxy = httpProxy$2;
+const httpProxy$1 = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy);
 const globToRegex = (pattern) => {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const regex = "^" + escaped.replace(/\*/g, ".*") + "$";
@@ -2301,7 +2301,7 @@ const proxy = async (feed) => {
   const updateFeed = () => feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
   for (const instance of CONFIG.instances) {
     console.log(`Launching proxy ${instance.target}::${instance.port}`);
-    const proxy2 = httpProxy.createProxyServer({
+    const proxy2 = httpProxy$1.createProxyServer({
       target: "https://" + instance.target,
       agent: require$$1$2.globalAgent,
       headers: {
