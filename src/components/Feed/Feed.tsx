@@ -17,99 +17,20 @@ type FeedItemSchema = {
   request: {
     timestamp: number
   },
+  proxyRequest?: {
+    timestamp: number,
+  },
+  proxyResponse?: {
+    status: number,
+    size: number,
+    timestamp: number
+  },
   response?: {
     status: number,
     size: number,
     timestamp: number
   }
 };
-
-const items: FeedItemSchema[] = [{
-  proxy: {
-    name: "Main",
-    icon: "mingcute:cat-fill"
-  },
-  url: {
-    pathname: "/api/stash/categories",
-    search: "?icon-filter=cat&keyword=ming"
-  },
-  configs: 4,
-  request: {
-    timestamp: 10
-  },
-  response: {
-    status: 200,
-    size: 4_000_000,
-    timestamp: 100
-  }
-},{
-  proxy: {
-    name: "Main",
-    icon: "mingcute:cat-fill"
-  },
-  url: {
-    pathname: "/api/stash/categories",
-    search: "?icon-filter=cat&keyword=ming"
-  },
-  configs: 4,
-  request: {
-    timestamp: 10
-  }
-},{
-  proxy: {
-    name: "Main",
-    icon: "mingcute:cat-fill"
-  },
-  url: {
-    pathname: "/api/stash/categories",
-    search: "?icon-filter=cat&keyword=ming"
-  },
-  configs: 4,
-  request: {
-    timestamp: 10
-  },
-  response: {
-    status: 500,
-    size: 3_000_000,
-    timestamp: 100
-  }
-},{
-  proxy: {
-    name: "Main",
-    icon: "mingcute:cat-fill"
-  },
-  url: {
-    pathname: "/api/stash/categories",
-    search: "?icon-filter=cat&keyword=ming"
-  },
-  configs: 4,
-  request: {
-    timestamp: 10
-  },
-  response: {
-    status: 302,
-    size: 3_000_000,
-    timestamp: 100
-  }
-},{
-  proxy: {
-    name: "Main",
-    icon: "mingcute:cat-fill"
-  },
-  url: {
-    pathname: "/api/stash/categories",
-    search: "?icon-filter=cat&keyword=ming"
-  },
-  configs: 4,
-  request: {
-    timestamp: 10
-  },
-  response: {
-    status: 404,
-    size: 3_000_000,
-    timestamp: 100
-  }
-}];
 
 const useBridgeState = <T extends any>(key: string, d: T): T => {
   const [ data, setData ] = useState(d);

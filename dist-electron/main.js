@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import require$$0$1 from "http";
@@ -2081,8 +2080,8 @@ var httpProxy$2 = ProxyServer;
  *          
  *          Dante - The Divine Comedy (Canto III)
  */
-var httpProxy = httpProxy$2;
-const httpProxy$1 = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy);
+var httpProxy$1 = httpProxy$2;
+const httpProxy = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy$1);
 const globToRegex = (pattern) => {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const regex = "^" + escaped.replace(/\*/g, ".*") + "$";
@@ -2302,7 +2301,7 @@ const proxy = async (feed) => {
   const updateFeed = () => feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
   for (const instance of CONFIG.instances) {
     console.log(`Launching proxy ${instance.target}::${instance.port}`);
-    const proxy2 = httpProxy$1.createProxyServer({
+    const proxy2 = httpProxy.createProxyServer({
       target: "https://" + instance.target,
       agent: require$$1$2.globalAgent,
       headers: {
@@ -2342,11 +2341,20 @@ const proxy = async (feed) => {
       }
       proxy2.web(req, res, { selfHandleResponse: true });
     }).listen(instance.port);
-    proxy2.on("proxyReq", (proxyReq) => {
+    proxy2.on("proxyReq", (proxyReq, req) => {
       const target = "https://" + instance.target;
       proxyReq.setHeader("origin", target);
       proxyReq.setHeader("referer", target);
       proxyReq.removeHeader("accept-encoding");
+      const feedItem = REQUEST_LIST.find((item) => item.req === req);
+      if (feedItem) {
+        feedItem.proxyResponse = {
+          timestamp: Date.now()
+        };
+        updateFeed();
+      } else {
+        console.log("proxyReq, no request item found");
+      }
     });
     proxy2.on("proxyRes", (proxyRes, req, res) => collectResponse(
       proxyRes,
@@ -2357,7 +2365,7 @@ const proxy = async (feed) => {
         const config2 = getConfig(instance.key, requestUrl);
         const feedItem = REQUEST_LIST.find((item) => item.req === req);
         if (feedItem) {
-          feedItem.response = {
+          feedItem.proxyResponse = {
             timestamp: Date.now(),
             status: proxyRes.statusCode ?? 600,
             size: 1
@@ -2375,10 +2383,25 @@ const proxy = async (feed) => {
         res.setHeader("content-length", Buffer.byteLength(sendBody));
         res.writeHead(proxyRes.statusCode ?? 200);
         res.end(sendBody);
+        if (feedItem) {
+          feedItem.response = {
+            timestamp: Date.now(),
+            status: proxyRes.statusCode ?? 600,
+            size: 1
+          };
+          updateFeed();
+        } else {
+          console.log("no request item found");
+        }
       },
       async (proxyRes2, req2) => {
         const feedItem = REQUEST_LIST.find((item) => item.req === req2);
         if (feedItem) {
+          feedItem.proxyResponse = {
+            timestamp: Date.now(),
+            status: proxyRes2.statusCode ?? 600,
+            size: 1
+          };
           feedItem.response = {
             timestamp: Date.now(),
             status: proxyRes2.statusCode ?? 600,
@@ -2390,6 +2413,11 @@ const proxy = async (feed) => {
       async (proxyRes2, req2) => {
         const feedItem = REQUEST_LIST.find((item) => item.req === req2);
         if (feedItem) {
+          feedItem.proxyResponse = {
+            timestamp: Date.now(),
+            status: proxyRes2.statusCode ?? 600,
+            size: 1
+          };
           feedItem.response = {
             timestamp: Date.now(),
             status: proxyRes2.statusCode ?? 600,
@@ -2401,7 +2429,6 @@ const proxy = async (feed) => {
     ));
   }
 };
-createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -2416,7 +2443,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     titleBarStyle: "hidden",
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path.join(process.env.VITE_PUBLIC, "transparent-logo.svg"),
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
     }

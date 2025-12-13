@@ -14,6 +14,13 @@
   -webkit-app-region: drag;    /* draggable area */
   height: 100%;
   flex: 1;
+  display: flex;
+  align-items: center;
+
+  .logo {
+    height: 32px;
+    margin-left: 10px;
+  }
 }
 
 .titlebar-buttons {

@@ -29,7 +29,9 @@ export const Titlebar = () => {
   const handleClose = () => ipc.send("window:close");
 
   return <div className="titlebar">
-    <div className="titlebar-drag-region" />
+    <div className="titlebar-drag-region">
+      <img src="/transparent-logo.svg" className="logo" />
+    </div>
     <div className="titlebar-buttons">
       <button onClick={handleMinimize}>
         <Icon icon="mingcute:minimize-fill" />

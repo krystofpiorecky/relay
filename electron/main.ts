@@ -1,10 +1,10 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { createRequire } from 'node:module'
+// import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { proxy } from './proxy/proxy'
 
-const require = createRequire(import.meta.url)
+// const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -34,7 +34,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     titleBarStyle: "hidden",
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC, 'transparent-logo.svg'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },

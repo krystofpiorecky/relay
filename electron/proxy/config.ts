@@ -49,10 +49,10 @@ type ProxyInstanceConfigSchema = Partial<{
   cache: CacheConfigSchema
 }>;
 
-type InterpretedProxyInstanceConfigSchema = Partial<{
-  log: boolean,
-  cache: InterpretedCacheConfigSchema
-}>;
+// type InterpretedProxyInstanceConfigSchema = Partial<{
+//   log: boolean,
+//   cache: InterpretedCacheConfigSchema
+// }>;
 
 type OutputConfigSchema = {
   target: Target,
