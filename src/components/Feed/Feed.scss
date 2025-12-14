@@ -25,6 +25,7 @@
       display: flex;
       align-items: center;
       cursor: pointer;
+      padding-right: 10px;
       transition: all 0.2s;
 
       &:hover {
@@ -39,6 +40,7 @@
 
       > .status {
         width: 55px;
+        min-width: 55px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -62,10 +64,11 @@
       }
 
       > .url {
-        font-size: 14px;
-        display: flex;
-        align-items: center;
+        font-size: 13px;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: rgba(255, 255, 255, 0.5);
 
         .proxy {
           color: rgba(255, 255, 255, 0.6);
@@ -78,11 +81,8 @@
         }
 
         .pathname {
-          font-weight: 600;
-        }
-
-        .search {
-          color: rgba(255, 255, 255, 0.5);
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.87);
         }
       }
     }
@@ -116,6 +116,7 @@
     .badges {
       display: flex;
       gap: 3px;
+
       > .proxy, > .status .status-badge {
         color: rgba(255, 255, 255, 0.7);
         padding: 2px 4px;
