@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export const bridge = (window as any).ipcRenderer;
 
-export const useBridgeState = <T extends any>(key: string, d: T): T => {
+export const useBridgeState = <T extends any>(key: string, d: T): [ T, (v: T) => void ] => {
   const [ data, setData ] = useState(d);
 
   useEffect(() => {
@@ -15,5 +15,11 @@ export const useBridgeState = <T extends any>(key: string, d: T): T => {
     return () => bridge.off(key, listener);
   }, []);
 
-  return data;
+  return [
+    data,
+    (v: T) => {
+      setData(v);
+      bridge.send(key, v);
+    }
+  ];
 };

@@ -42,12 +42,12 @@ function createWindow() {
 
   win.on("maximize", () => {
     win?.setResizable(true);
-    win?.webContents.send("window:state", { maximized: true });
+    win?.webContents.send("window:isMaximized", true);
   });
 
   win.on("unmaximize", () => {
     win?.setResizable(true);
-    win?.webContents.send("window:state", { maximized: false });
+    win?.webContents.send("window:isMaximized", false);
   });
 
   // Test active push message to Renderer-process.
@@ -90,7 +90,6 @@ ipcMain.on("window:maximize", () => {
 });
 
 ipcMain.on("window:unmaximize", () => {
-  console.log("unmaximize", win?.isMaximized());
   if (win?.isFullScreen()) win?.setFullScreen(false);
   else if (win?.isMaximized()) win?.unmaximize();
   else win?.restore();

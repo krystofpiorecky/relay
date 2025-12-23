@@ -2505,11 +2505,11 @@ function createWindow() {
   });
   win.on("maximize", () => {
     win == null ? void 0 : win.setResizable(true);
-    win == null ? void 0 : win.webContents.send("window:state", { maximized: true });
+    win == null ? void 0 : win.webContents.send("window:isMaximized", true);
   });
   win.on("unmaximize", () => {
     win == null ? void 0 : win.setResizable(true);
-    win == null ? void 0 : win.webContents.send("window:state", { maximized: false });
+    win == null ? void 0 : win.webContents.send("window:isMaximized", false);
   });
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
@@ -2538,7 +2538,6 @@ ipcMain.on("window:maximize", () => {
   win == null ? void 0 : win.maximize();
 });
 ipcMain.on("window:unmaximize", () => {
-  console.log("unmaximize", win == null ? void 0 : win.isMaximized());
   if (win == null ? void 0 : win.isFullScreen()) win == null ? void 0 : win.setFullScreen(false);
   else if (win == null ? void 0 : win.isMaximized()) win == null ? void 0 : win.unmaximize();
   else win == null ? void 0 : win.restore();

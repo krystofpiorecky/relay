@@ -1,8 +1,7 @@
 import { Icon } from "@iconify/react";
 import "./Titlebar.scss";
-import { useEffect, useState } from "react";
 import { Page } from "@utilities/page";
-import { bridge } from "@utilities/bridge";
+import { bridge, useBridgeState } from "@utilities/bridge";
 
 type Props = {
   page: Page,
@@ -10,22 +9,7 @@ type Props = {
 };
 
 export const Titlebar = ({ page, onPageChange }: Props) => {
-  const [maximized, setMaximized] = useState(false);
-
-  useEffect(() => {
-    bridge.invoke("window:isMaximized").then((isMax: boolean) => {
-      console.log("CHANGE");
-      setMaximized(isMax);
-    });
-
-    const listener = (_: any, state: { maximized: boolean }) => {
-      console.log("listener", state);
-      setMaximized(state.maximized);
-    };
-
-    bridge.on("window:state", listener);
-    return () => bridge.off("window:maximized", listener);
-  }, []);
+  const [ maximized ] = useBridgeState<boolean>("window:isMaximized", false);
 
   const handleMinimize = () => bridge.send("window:minimize");
   const handleMaximize = () => bridge.send("window:maximize");
@@ -59,4 +43,4 @@ export const Titlebar = ({ page, onPageChange }: Props) => {
       </button>
     </div>
   </div>
-}
+};

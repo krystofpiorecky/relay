@@ -34,7 +34,7 @@ type FeedItemSchema = {
 };
 
 export const Feed = () => {
-  const bridgeItems = useBridgeState<FeedItemSchema[]>("proxy:feed", []);
+  const [ bridgeItems ] = useBridgeState<FeedItemSchema[]>("proxy:feed", []);
   const [ activeItem, setActiveItem ] = useState<FeedItemSchema>();
 
   const filteredItems = bridgeItems

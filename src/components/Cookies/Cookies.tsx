@@ -14,7 +14,7 @@ type CookieSchema = {
 };
 
 export const Cookies = () => {
-  const bridgeItems = useBridgeState<CookieSchema[]>("cookies:list", []);
+  const [ bridgeItems ] = useBridgeState<CookieSchema[]>("cookies:list", []);
 
   return <div className="cookies">
     <div className="items">
