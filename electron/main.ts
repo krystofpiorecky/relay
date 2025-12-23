@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 // import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { getActiveCookies, proxy, setActiveCookies } from './proxy/proxy'
+import { setupProxy } from './proxy/setup'
 
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -61,6 +61,8 @@ function createWindow() {
     // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
+
+  setupProxy(win);
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -103,17 +105,4 @@ ipcMain.handle("window:isMaximized", () => {
   return win?.isMaximized();
 });
 
-ipcMain.handle("cookies:list", () => {
-  return getActiveCookies();
-});
-ipcMain.on("cookies:set", (_, data: string[]) => {
-  setActiveCookies(data);
-  win?.webContents.send("cookies:list", getActiveCookies())
-});
-
 app.whenReady().then(createWindow)
-
-ipcMain.handle("proxy:feed", () => {
-  return [];
-});
-proxy(data => win?.webContents.send("proxy:feed", data));

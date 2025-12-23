@@ -14,7 +14,7 @@ type CookieSchema = {
 };
 
 export const Cookies = () => {
-  const [ bridgeItems ] = useBridgeState<CookieSchema[]>("cookies:list", []);
+  const [ bridgeItems ] = useBridgeState<CookieSchema[]>("proxy:cookies", []);
 
   return <div className="cookies">
     <div className="items">
@@ -23,7 +23,7 @@ export const Cookies = () => {
           <Checkbox
             value={item.active}
             onChange={() => {
-              bridge.send("cookies:set", 
+              bridge.send("proxy:cookies:active", 
                 bridgeItems
                   .filter(c => c.name === item.name ? !c.active : c.active)
                   .map(c => c.name)

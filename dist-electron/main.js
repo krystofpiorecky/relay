@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { ipcMain, app, BrowserWindow } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import require$$0$1 from "http";
@@ -9,8 +12,29 @@ import require$$3 from "stream";
 import require$$4 from "assert";
 import require$$1$1 from "tty";
 import require$$0 from "os";
-import { promises } from "fs";
-import { join } from "path";
+import "fs";
+import "path";
+class EventHandler {
+  constructor() {
+    __publicField(this, "handlers", {});
+  }
+  on(key, handler) {
+    if (!(key in this.handlers))
+      this.handlers[key] = [];
+    this.handlers[key].push(handler);
+  }
+  off(key, handler) {
+    if (!(key in this.handlers))
+      return;
+    this.handlers[key] = this.handlers[key].filter((h) => h !== handler);
+  }
+  invoke(key, value) {
+    if (!(key in this.handlers))
+      return;
+    for (const handler of this.handlers[key])
+      handler(value);
+  }
+}
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
 }
@@ -2226,16 +2250,6 @@ const copyHeaders = (proxyRes, res) => {
     res.setHeader(key, value);
   });
 };
-const handleOptions = (req, res) => {
-  const method = String(req.method || "").toUpperCase();
-  if (method !== "OPTIONS")
-    return false;
-  setFullHeaders(req, res);
-  res.setHeader("Content-Length", "0");
-  res.writeHead(200);
-  res.end();
-  return true;
-};
 const handleRedirect = (instance, req, res) => {
   if (instance.key !== "main")
     return false;
@@ -2248,14 +2262,6 @@ const handleRedirect = (instance, req, res) => {
   }
   return false;
 };
-const readJSON = async (filepath) => {
-  try {
-    const data = await promises.readFile(filepath, "utf-8");
-    return safeParse(data);
-  } catch (e) {
-    return null;
-  }
-};
 const safeParse = (text) => {
   try {
     return JSON.parse(text);
@@ -2263,57 +2269,126 @@ const safeParse = (text) => {
     return null;
   }
 };
-const cacheDir = join(process.cwd(), "remote", "proxy", "cache");
-const cachePath = (instanceKey, url2) => {
-  let parts = url2.split("/").filter((x) => !!x).map((x) => encodeURIComponent(x));
-  if (parts.length === 0)
-    parts = ["__index"];
-  return join(
-    cacheDir,
-    instanceKey,
-    parts.join("/") + ".json"
-  );
-};
-const handleCacheRead = async (instance, config2, req, res) => {
-  if (!config2.cache.read)
-    return false;
-  const requestUrl = url$2.parse(req.url || "", true).pathname;
-  const data = await readJSON(cachePath(instance.key, requestUrl));
-  if (!data)
-    return false;
-  setFullHeaders(req, res);
-  res.setHeader("Content-Type", "application/json");
-  res.writeHead(200);
-  res.end(JSON.stringify(data));
-  return true;
-};
-const collectResponse = (proxyRes, req, res, callback, redirectCallback, nonJsonCallback) => {
-  const status = proxyRes.statusCode ?? 200;
-  if ([301, 302, 307, 308].includes(status)) {
-    setFullHeaders(req, res);
-    res.writeHead(status, proxyRes.headers);
-    res.end();
-    redirectCallback(proxyRes, req);
-    return;
+class ProxyInstance extends EventHandler {
+  constructor() {
+    super(...arguments);
+    __publicField(this, "config");
+    __publicField(this, "proxyServer");
+    __publicField(this, "getCookies", () => []);
+    __publicField(this, "handleProxyReq", (proxyReq, req) => {
+      const target = "https://" + this.config.target;
+      proxyReq.setHeader("origin", target);
+      proxyReq.setHeader("referer", target);
+      proxyReq.removeHeader("accept-encoding");
+      this.invoke("proxy:sent", { proxyReq, req });
+    });
+    __publicField(this, "handleProxyRes", (proxyRes, req, res) => {
+      const status = proxyRes.statusCode ?? 200;
+      this.invoke("proxy:received", { proxyRes, req, res });
+      if ([301, 302, 307, 308].includes(status)) {
+        setFullHeaders(req, res);
+        res.writeHead(status, proxyRes.headers);
+        res.end();
+        this.invoke("request:responded", { proxyRes, req, res });
+        return;
+      }
+      const chunks = [];
+      proxyRes.on("data", (chunk) => chunks.push(chunk));
+      proxyRes.on("end", async () => {
+        const contentType = proxyRes.headers["content-type"] || "";
+        if (!contentType.includes("application/json")) {
+          copyHeaders(proxyRes, res);
+          setResponseHeaders(proxyRes, req, res);
+          res.writeHead(proxyRes.statusCode ?? 200);
+          res.end(Buffer.concat(chunks));
+          this.invoke("request:responded", { proxyRes, req, res });
+          return;
+        }
+        const content = Buffer.concat(chunks).toString("utf8");
+        const data = safeParse(content);
+        const requestUrl = url$2.parse(req.url || "", true).pathname;
+        const config2 = getConfig(this.config.key, requestUrl);
+        if (this.config.log) {
+          console.log(`[${this.config.key} < ${requestUrl}] ${config2.cache.write ? "CACHE-W" : ""}`);
+        }
+        const sendBody = JSON.stringify(data);
+        copyHeaders(proxyRes, res);
+        setResponseHeaders(proxyRes, req, res);
+        setCookieHeaders(this.getCookies(), proxyRes, res);
+        res.setHeader("content-length", Buffer.byteLength(sendBody));
+        res.writeHead(proxyRes.statusCode ?? 200);
+        res.end(sendBody);
+        this.invoke("request:responded", { proxyRes, req, res });
+      });
+    });
+    __publicField(this, "maybeHandleOptions", (req, res) => {
+      const method = String(req.method || "").toUpperCase();
+      if (method !== "OPTIONS")
+        return false;
+      setFullHeaders(req, res);
+      res.setHeader("Content-Length", "0");
+      res.writeHead(200);
+      res.end();
+      return true;
+    });
   }
-  const chunks = [];
-  proxyRes.on("data", (chunk) => chunks.push(chunk));
-  proxyRes.on("end", async () => {
-    const contentType = proxyRes.headers["content-type"] || "";
-    if (!contentType.includes("application/json")) {
-      copyHeaders(proxyRes, res);
-      setResponseHeaders(proxyRes, req, res);
-      res.writeHead(proxyRes.statusCode ?? 200);
-      res.end(Buffer.concat(chunks));
-      nonJsonCallback(proxyRes, req);
-      return;
+  setConfig(config2) {
+    console.log(`Launching proxy ${config2.target}::${config2.port}`);
+    this.config = config2;
+    this.proxyServer = httpProxy$1.createProxyServer({
+      target: "https://" + this.config.target,
+      agent: require$$1$2.globalAgent,
+      headers: {
+        host: new URL("https://" + this.config.target).host
+      }
+    });
+    require$$0$1.createServer(async (req, res) => {
+      if (this.maybeHandleOptions(req, res)) return;
+      if (handleRedirect(this.config, req, res)) return;
+      this.invoke("request:received", { req, res });
+      const requestUrl = url$2.parse(req.url || "", true).pathname;
+      const config22 = getConfig(this.config.key, requestUrl);
+      if (config22.delay > 0)
+        await new Promise((r) => setTimeout(r, config22.delay));
+      this.proxyServer.web(req, res, { selfHandleResponse: true });
+    }).listen(this.config.port);
+    this.proxyServer.on("proxyReq", this.handleProxyReq);
+    this.proxyServer.on("proxyRes", this.handleProxyRes);
+  }
+}
+class Proxy2 extends EventHandler {
+  constructor() {
+    super(...arguments);
+    __publicField(this, "instances", []);
+    __publicField(this, "cookies", []);
+    __publicField(this, "config");
+  }
+  setConfig(config2) {
+    this.config = config2;
+    for (const instanceConfig of this.config.instances) {
+      const instance = new ProxyInstance();
+      this.instances.push(instance);
+      instance.getCookies = () => this.cookies.filter((c) => c.active);
+      instance.setConfig(instanceConfig);
+      instance.on(
+        "request:received",
+        (e) => this.invoke("request:received", { instance: instanceConfig.key, ...e })
+      );
+      instance.on(
+        "proxy:sent",
+        (e) => this.invoke("proxy:sent", { instance: instanceConfig.key, ...e })
+      );
+      instance.on(
+        "proxy:received",
+        (e) => this.invoke("proxy:received", { instance: instanceConfig.key, ...e })
+      );
+      instance.on(
+        "request:responded",
+        (e) => this.invoke("request:responded", { instance: instanceConfig.key, ...e })
+      );
     }
-    const content = Buffer.concat(chunks).toString("utf8");
-    callback(safeParse(content));
-  });
-};
-const CONFIG = getSetupConfig();
-const REQUEST_LIST = [];
+  }
+}
 const COOKIES = [{
   "name": "cf_clearance",
   "value": "NeHtWi8OumdFncpPWjEfs3IrhTfSNEl1s6M_dLMZCps-1760533096-1.2.1.1-2.8i97vJ3yIi0BabnfudDj6aJdoECsnTigMjnMs73_ayHCHmmqvvo6uPxMe.guotlhIn1ASkb.d02GblJc4ORHN1YaEADuPjHbfK_0O50H.WfVmBCPBcT_3v7Qem4N29XAAS5LegrqvLyebagT5U7Bu.6nIDpnbKrTu0tqwU61zvKgA_XWlsc9NKUEwWPmRlpXZ3xYHo_CXDbmdbcQ8AhcJiRhHpozDO6v0uiAYbbc8",
@@ -2322,7 +2397,8 @@ const COOKIES = [{
   "httpOnly": true,
   "secure": true,
   "sameSite": "None",
-  "expires": 1792069097565749e-6
+  "expires": 1792069097565749e-6,
+  active: true
 }, {
   "name": "identity",
   "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNzY1NjExOTgwOTk0NTI2OTUifSwiaXNzIjoic2tpbnNlYXJjaCIsInN1YiI6ImlkZW50aXR5In0.1GUmVVlxxS4u9--R1pzf-om9cb9q9Mgi7mnjWIwmr74",
@@ -2330,7 +2406,8 @@ const COOKIES = [{
   "path": "/",
   "httpOnly": true,
   "secure": true,
-  "expires": 1766927315920051e-6
+  "expires": 1766927315920051e-6,
+  active: true
 }, {
   "name": "content",
   "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImF2YXRhciI6IjlmMjYzODhlMmUyNTQyNTRhMmMyMGI4YzRlZTA1YzBlYmUyY2VhNzEiLCJpZCI6Ijc2NTYxMTk4MDk5NDUyNjk1IiwibmFtZSI6InZ5aGxlZGF2YW0gZG9taW5hbnRuaSB6ZW55In0sImlzcyI6InNraW5zZWFyY2giLCJzdWIiOiJjb250ZW50In0.KTjR_z2rhFbwaL5-xu-3M9O1QTuRSZoGOoqfbWRDycM",
@@ -2338,7 +2415,8 @@ const COOKIES = [{
   "path": "/",
   "httpOnly": false,
   "secure": true,
-  "expires": 1766927315920097e-6
+  "expires": 1766927315920097e-6,
+  active: true
 }, {
   "name": "discord",
   "value": "eyJpZCI6IjM5MzgwNTU3MjcxOTUwOTUyNSIsInVzZXJuYW1lIjoic2h0b29vZmkiLCJhdmF0YXIiOiJiYWI4N2Q2Nzc3N2U2N2QxZDAxNmM4N2I3YWQ5NzRkOCIsImFwcF9hZGRlZCI6dHJ1ZX0",
@@ -2346,143 +2424,67 @@ const COOKIES = [{
   "path": "/",
   "httpOnly": false,
   "secure": true,
-  "expires": 1766927315920097e-6
+  "expires": 1766927315920097e-6,
+  active: true
 }];
-let activeCookies = COOKIES.map((c) => c.name);
-const setActiveCookies = (v) => activeCookies = v;
-const getActiveCookies = () => COOKIES.map((c) => ({ ...c, active: activeCookies.includes(c.name) }));
-const proxy = async (feed) => {
-  const updateFeed = () => feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
-  for (const instance of CONFIG.instances) {
-    console.log(`Launching proxy ${instance.target}::${instance.port}`);
-    const proxy2 = httpProxy$1.createProxyServer({
-      target: "https://" + instance.target,
-      agent: require$$1$2.globalAgent,
-      headers: {
-        host: new URL("https://" + instance.target).host
-      }
-    });
-    require$$0$1.createServer(async (req, res) => {
-      if (handleOptions(req, res)) return;
-      if (handleRedirect(instance, req, res)) return;
-      const requestUrl = url$2.parse(req.url || "", true).pathname;
-      const feedItem = {
-        proxy: {
-          name: instance.key,
-          icon: "mingcute:cat-fill"
-        },
-        url: {
-          pathname: url$2.parse(req.url || "", true).pathname,
-          search: url$2.parse(req.url || "", true).search
-        },
-        configs: 4,
-        request: {
-          timestamp: Date.now()
-        },
-        req,
-        res
-      };
-      REQUEST_LIST.push(feedItem);
-      updateFeed();
-      const config2 = getConfig(instance.key, requestUrl);
-      if (config2.delay > 0)
-        await new Promise((r) => setTimeout(r, config2.delay));
-      if (instance.log) {
-        console.log(`[${instance.key} > ${requestUrl}] ${config2.cache.read ? "CACHE-R" : ""}`);
-      }
-      if (await handleCacheRead(instance, config2, req, res)) {
-        return;
-      }
-      proxy2.web(req, res, { selfHandleResponse: true });
-    }).listen(instance.port);
-    proxy2.on("proxyReq", (proxyReq, req) => {
-      const target = "https://" + instance.target;
-      proxyReq.setHeader("origin", target);
-      proxyReq.setHeader("referer", target);
-      proxyReq.removeHeader("accept-encoding");
-      const feedItem = REQUEST_LIST.find((item) => item.req === req);
-      if (feedItem) {
-        feedItem.proxyResponse = {
-          timestamp: Date.now()
-        };
-        updateFeed();
-      } else {
-        console.log("proxyReq, no request item found");
-      }
-    });
-    proxy2.on("proxyRes", (proxyRes, req, res) => collectResponse(
-      proxyRes,
-      req,
-      res,
-      async (data) => {
-        const requestUrl = url$2.parse(req.url || "", true).pathname;
-        const config2 = getConfig(instance.key, requestUrl);
-        const feedItem = REQUEST_LIST.find((item) => item.req === req);
-        if (feedItem) {
-          feedItem.proxyResponse = {
-            timestamp: Date.now(),
-            status: proxyRes.statusCode ?? 600,
-            size: 1
-          };
-          updateFeed();
-        } else {
-          console.log("no request item found");
-        }
-        if (instance.log) {
-          console.log(`[${instance.key} < ${requestUrl}] ${config2.cache.write ? "CACHE-W" : ""}`);
-        }
-        const sendBody = JSON.stringify(data);
-        copyHeaders(proxyRes, res);
-        setResponseHeaders(proxyRes, req, res);
-        setCookieHeaders(COOKIES.filter((c) => activeCookies.includes(c.name)), proxyRes, res);
-        res.setHeader("content-length", Buffer.byteLength(sendBody));
-        res.writeHead(proxyRes.statusCode ?? 200);
-        res.end(sendBody);
-        if (feedItem) {
-          feedItem.response = {
-            timestamp: Date.now(),
-            status: proxyRes.statusCode ?? 600,
-            size: 1
-          };
-          updateFeed();
-        } else {
-          console.log("no request item found");
-        }
+const feed = [];
+const setupProxy = (win2) => {
+  const proxy = new Proxy2();
+  proxy.setConfig(getSetupConfig());
+  proxy.cookies = COOKIES;
+  proxy.on("request:received", ({ instance, req }) => {
+    const feedItem = {
+      proxy: {
+        name: instance,
+        icon: "mingcute:cat-fill"
       },
-      async (proxyRes2, req2) => {
-        const feedItem = REQUEST_LIST.find((item) => item.req === req2);
-        if (feedItem) {
-          feedItem.proxyResponse = {
-            timestamp: Date.now(),
-            status: proxyRes2.statusCode ?? 600,
-            size: 1
-          };
-          feedItem.response = {
-            timestamp: Date.now(),
-            status: proxyRes2.statusCode ?? 600,
-            size: 1
-          };
-          updateFeed();
-        }
+      url: {
+        pathname: url$2.parse(req.url || "", true).pathname,
+        search: url$2.parse(req.url || "", true).search
       },
-      async (proxyRes2, req2) => {
-        const feedItem = REQUEST_LIST.find((item) => item.req === req2);
-        if (feedItem) {
-          feedItem.proxyResponse = {
-            timestamp: Date.now(),
-            status: proxyRes2.statusCode ?? 600,
-            size: 1
-          };
-          feedItem.response = {
-            timestamp: Date.now(),
-            status: proxyRes2.statusCode ?? 600,
-            size: 1
-          };
-          updateFeed();
-        }
-      }
-    ));
-  }
+      configs: 4,
+      request: {
+        timestamp: Date.now()
+      },
+      req
+    };
+    feed.push(feedItem);
+    win2.webContents.send("proxy:feed", feed.map(({ req: req2, ...item }) => item));
+  });
+  proxy.on("proxy:sent", ({ req }) => {
+    const feedItem = feed.find((item) => item.req === req);
+    if (!feedItem) return;
+    feedItem.proxyRequest = {
+      timestamp: Date.now()
+    };
+    win2.webContents.send("proxy:feed", feed.map(({ req: req2, ...item }) => item));
+  });
+  proxy.on("proxy:received", ({ proxyRes, req }) => {
+    const feedItem = feed.find((item) => item.req === req);
+    if (!feedItem) return;
+    feedItem.proxyResponse = {
+      timestamp: Date.now(),
+      status: proxyRes.statusCode ?? 600,
+      size: 1
+    };
+    win2.webContents.send("proxy:feed", feed.map(({ req: req2, ...item }) => item));
+  });
+  proxy.on("request:responded", ({ proxyRes, req }) => {
+    const feedItem = feed.find((item) => item.req === req);
+    if (!feedItem) return;
+    feedItem.response = {
+      timestamp: Date.now(),
+      status: proxyRes.statusCode ?? 600,
+      size: 1
+    };
+    win2.webContents.send("proxy:feed", feed.map(({ req: req2, ...item }) => item));
+  });
+  ipcMain.handle("proxy:feed", () => feed.map(({ req, ...item }) => item));
+  ipcMain.handle("proxy:cookies", () => proxy.cookies);
+  ipcMain.on("proxy:cookies:active", (_, data) => {
+    proxy.cookies = COOKIES.map((c) => ({ ...c, active: data.includes(c.name) }));
+    win2.webContents.send("proxy:cookies", proxy.cookies);
+  });
 };
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
@@ -2519,6 +2521,7 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
+  setupProxy(win);
 }
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -2548,18 +2551,7 @@ ipcMain.on("window:close", () => {
 ipcMain.handle("window:isMaximized", () => {
   return win == null ? void 0 : win.isMaximized();
 });
-ipcMain.handle("cookies:list", () => {
-  return getActiveCookies();
-});
-ipcMain.on("cookies:set", (_, data) => {
-  setActiveCookies(data);
-  win == null ? void 0 : win.webContents.send("cookies:list", getActiveCookies());
-});
 app.whenReady().then(createWindow);
-ipcMain.handle("proxy:feed", () => {
-  return [];
-});
-proxy((data) => win == null ? void 0 : win.webContents.send("proxy:feed", data));
 export {
   MAIN_DIST,
   RENDERER_DIST,

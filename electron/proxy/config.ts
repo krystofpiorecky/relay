@@ -77,7 +77,7 @@ const defaultConfig: OutputConfigSchema = {
 };
 
 const defaultPort = 9991;
-type OutputSetupConfigSchema = {
+export type OutputSetupConfigSchema = {
   loginTarget: string,
   instances: {
     key: string,
