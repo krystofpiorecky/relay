@@ -1,5 +1,7 @@
 import http from "http";
 
+const ALL_HTTP_METHODS = "GET, POST, PUT, DELETE, OPTIONS, HEAD";
+
 export const setFullHeaders = (req: http.IncomingMessage, res: http.ServerResponse) => {
   res.setHeader("Access-Control-Expose-Headers", "*");
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -8,14 +10,15 @@ export const setFullHeaders = (req: http.IncomingMessage, res: http.ServerRespon
   res.setHeader("Access-Control-Allow-Methods", req.headers["access-control-request-method"] || "GET");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("Access-Control-Request-Method", "POST");
-  res.setHeader("Allow", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.setHeader("Allowed", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+  res.setHeader("Allow", ALL_HTTP_METHODS);
+  res.setHeader("Allowed", ALL_HTTP_METHODS);
   
   if (req.headers.origin) 
     res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
 };
 
-export const setCookieHeaders = (cookies: any[], res: http.ServerResponse) => {
+export const setCookieHeaders = (cookies: any[], proxyRes: http.IncomingMessage, res: http.ServerResponse) => {
+  console.log(proxyRes.headers["set-cookie"]);
   const headers = cookies.map(cookie => {
     const parts = [
       `${cookie.name}=${cookie.value}`,

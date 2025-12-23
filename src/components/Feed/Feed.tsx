@@ -1,6 +1,7 @@
 import { Icon } from "@iconify/react";
 import "./Feed.scss";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useBridgeState } from "@utilities/bridge";
 
 type ProxyInfoSchema = {
   name: string,
@@ -30,20 +31,6 @@ type FeedItemSchema = {
     size: number,
     timestamp: number
   }
-};
-
-const useBridgeState = <T extends any>(key: string, d: T): T => {
-  const [ data, setData ] = useState(d);
-
-  useEffect(() => {
-    const ipc = (window as any).ipcRenderer;
-
-    const listener = (_: any, state: T) => setData(state);
-    ipc.on(key, listener);
-    return () => ipc.off(key, listener);
-  }, []);
-
-  return data;
 };
 
 export const Feed = () => {

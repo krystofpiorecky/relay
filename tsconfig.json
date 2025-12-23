@@ -22,6 +22,7 @@
 
     "paths": {
       "@components/*": ["./src/components/*"],
+      "@utilities/*": ["./src/utilities/*"],
       "@_utilities/*": ["./electron/utilities/*"]
     }
   },

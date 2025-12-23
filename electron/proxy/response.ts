@@ -1,6 +1,6 @@
 import { safeParse } from "@_utilities/file";
 import http from "http";
-import { setFullHeaders } from "./headers";
+import { copyHeaders, setFullHeaders, setResponseHeaders } from "./headers";
 
 export const collectResponse = (
   proxyRes: http.IncomingMessage,
@@ -27,8 +27,9 @@ export const collectResponse = (
     // handle non-json
     const contentType = proxyRes.headers["content-type"] || "";
     if (!contentType.includes("application/json")) {
-      setFullHeaders(req, res);
-      res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+      copyHeaders(proxyRes, res);
+      setResponseHeaders(proxyRes, req, res);
+      res.writeHead(proxyRes.statusCode ?? 200);
       res.end(Buffer.concat(chunks));
       nonJsonCallback(proxyRes, req);
       return;

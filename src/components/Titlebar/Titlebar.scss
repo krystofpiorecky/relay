@@ -10,43 +10,77 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.titlebar-drag-region {
-  -webkit-app-region: drag;    /* draggable area */
-  height: 100%;
-  flex: 1;
+nav {
   display: flex;
-  align-items: center;
+  margin-right: 5px;
+  -webkit-app-region: no-drag;
+  gap: 5px;
 
   .logo {
     height: 32px;
     margin-left: 10px;
   }
+
+  button {
+    padding: 0 10px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    font-weight: 500;
+    gap: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+
+    &[data-active=true] {
+      background: rgba(255, 255, 255, 0.05);
+      color: rgb(208, 208, 208);
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.titlebar-drag-region {
+  -webkit-app-region: drag;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .titlebar-buttons {
   margin-right: 5px;
   display: flex;
-  -webkit-app-region: no-drag; /* buttons must NOT be draggable */
-}
+  -webkit-app-region: no-drag;
 
-.titlebar-buttons button {
-  width: 46px;
-  height: 38px;
-  background: transparent;
-  border: none;
-  color: #aaa;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-}
+  button {
+    width: 46px;
+    height: 38px;
+    background: transparent;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition: all 0.2s;
 
-.titlebar-buttons button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
 
-.titlebar-buttons .close:hover {
-  background: #e81123; /* Windows close button color */
-  color: white;
+    &.close:hover {
+      background: #e81123;
+      color: white;
+    }
+  }
 }

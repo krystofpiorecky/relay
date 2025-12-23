@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 // import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { proxy } from './proxy/proxy'
+import { getActiveCookies, proxy, setActiveCookies } from './proxy/proxy'
 
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -104,14 +104,17 @@ ipcMain.handle("window:isMaximized", () => {
   return win?.isMaximized();
 });
 
-ipcMain.handle("toggle-maximize", () => {
-  if (win?.isMaximized()) {
-    win?.unmaximize();
-  } else {
-    win?.maximize();
-  }
+ipcMain.handle("cookies:list", () => {
+  return getActiveCookies();
+});
+ipcMain.on("cookies:set", (_, data: string[]) => {
+  setActiveCookies(data);
+  win?.webContents.send("cookies:list", getActiveCookies())
 });
 
 app.whenReady().then(createWindow)
 
+ipcMain.handle("proxy:feed", () => {
+  return [];
+});
 proxy(data => win?.webContents.send("proxy:feed", data));

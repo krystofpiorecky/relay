@@ -1,15 +1,19 @@
 import { Icon } from "@iconify/react";
 import "./Titlebar.scss";
 import { useEffect, useState } from "react";
-const ipc = (window as any).ipcRenderer;
+import { Page } from "@utilities/page";
+import { bridge } from "@utilities/bridge";
 
-export const Titlebar = () => {
+type Props = {
+  page: Page,
+  onPageChange: (v: Page) => void
+};
+
+export const Titlebar = ({ page, onPageChange }: Props) => {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    const ipc = (window as any).ipcRenderer;
-
-    ipc.invoke("window:isMaximized").then((isMax: boolean) => {
+    bridge.invoke("window:isMaximized").then((isMax: boolean) => {
       console.log("CHANGE");
       setMaximized(isMax);
     });
@@ -19,19 +23,28 @@ export const Titlebar = () => {
       setMaximized(state.maximized);
     };
 
-    ipc.on("window:state", listener);
-    return () => ipc.off("window:maximized", listener);
+    bridge.on("window:state", listener);
+    return () => bridge.off("window:maximized", listener);
   }, []);
 
-  const handleMinimize = () => ipc.send("window:minimize");
-  const handleMaximize = () => ipc.send("window:maximize");
-  const handleUnmaximize = () => ipc.send("window:unmaximize");
-  const handleClose = () => ipc.send("window:close");
+  const handleMinimize = () => bridge.send("window:minimize");
+  const handleMaximize = () => bridge.send("window:maximize");
+  const handleUnmaximize = () => bridge.send("window:unmaximize");
+  const handleClose = () => bridge.send("window:close");
 
   return <div className="titlebar">
-    <div className="titlebar-drag-region">
+    <nav>
       <img src="/transparent-logo.svg" className="logo" />
-    </div>
+      <button onClick={() => onPageChange("feed")} data-active={page === "feed"}>
+        <Icon icon="mingcute:transfer-fill" />
+        Feed
+      </button>
+      <button onClick={() => onPageChange("cookies")} data-active={page === "cookies"}>
+        <Icon icon="mingcute:cookie-fill" />
+        Cookies
+      </button>
+    </nav>
+    <div className="titlebar-drag-region"></div>
     <div className="titlebar-buttons">
       <button onClick={handleMinimize}>
         <Icon icon="mingcute:minimize-fill" />

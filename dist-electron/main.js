@@ -2177,6 +2177,7 @@ const interpretConfig = (config2) => {
     ...other
   };
 };
+const ALL_HTTP_METHODS = "GET, POST, PUT, DELETE, OPTIONS, HEAD";
 const setFullHeaders = (req, res) => {
   res.setHeader("Access-Control-Expose-Headers", "*");
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -2185,10 +2186,25 @@ const setFullHeaders = (req, res) => {
   res.setHeader("Access-Control-Allow-Methods", req.headers["access-control-request-method"] || "GET");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("Access-Control-Request-Method", "POST");
-  res.setHeader("Allow", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.setHeader("Allowed", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+  res.setHeader("Allow", ALL_HTTP_METHODS);
+  res.setHeader("Allowed", ALL_HTTP_METHODS);
   if (req.headers.origin)
     res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+};
+const setCookieHeaders = (cookies, proxyRes, res) => {
+  console.log(proxyRes.headers["set-cookie"]);
+  const headers = cookies.map((cookie) => {
+    const parts = [
+      `${cookie.name}=${cookie.value}`,
+      `Path=/`,
+      cookie.httpOnly ? "HttpOnly" : null,
+      "Secure",
+      cookie.expires ? `Expires=${new Date(cookie.expires * 1e3).toUTCString()}` : null,
+      "SameSite=None"
+    ].filter(Boolean);
+    return parts.join("; ");
+  });
+  res.setHeader("Set-Cookie", headers);
 };
 const setResponseHeaders = (proxyRes, req, res) => {
   delete proxyRes.headers["access-control-allow-origin"];
@@ -2285,8 +2301,9 @@ const collectResponse = (proxyRes, req, res, callback, redirectCallback, nonJson
   proxyRes.on("end", async () => {
     const contentType = proxyRes.headers["content-type"] || "";
     if (!contentType.includes("application/json")) {
-      setFullHeaders(req, res);
-      res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+      copyHeaders(proxyRes, res);
+      setResponseHeaders(proxyRes, req, res);
+      res.writeHead(proxyRes.statusCode ?? 200);
       res.end(Buffer.concat(chunks));
       nonJsonCallback(proxyRes, req);
       return;
@@ -2297,6 +2314,43 @@ const collectResponse = (proxyRes, req, res, callback, redirectCallback, nonJson
 };
 const CONFIG = getSetupConfig();
 const REQUEST_LIST = [];
+const COOKIES = [{
+  "name": "cf_clearance",
+  "value": "NeHtWi8OumdFncpPWjEfs3IrhTfSNEl1s6M_dLMZCps-1760533096-1.2.1.1-2.8i97vJ3yIi0BabnfudDj6aJdoECsnTigMjnMs73_ayHCHmmqvvo6uPxMe.guotlhIn1ASkb.d02GblJc4ORHN1YaEADuPjHbfK_0O50H.WfVmBCPBcT_3v7Qem4N29XAAS5LegrqvLyebagT5U7Bu.6nIDpnbKrTu0tqwU61zvKgA_XWlsc9NKUEwWPmRlpXZ3xYHo_CXDbmdbcQ8AhcJiRhHpozDO6v0uiAYbbc8",
+  "domain": ".skinsearch.com",
+  "path": "/",
+  "httpOnly": true,
+  "secure": true,
+  "sameSite": "None",
+  "expires": 1792069097565749e-6
+}, {
+  "name": "identity",
+  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNzY1NjExOTgwOTk0NTI2OTUifSwiaXNzIjoic2tpbnNlYXJjaCIsInN1YiI6ImlkZW50aXR5In0.1GUmVVlxxS4u9--R1pzf-om9cb9q9Mgi7mnjWIwmr74",
+  "domain": "skinsearch.com",
+  "path": "/",
+  "httpOnly": true,
+  "secure": true,
+  "expires": 1766927315920051e-6
+}, {
+  "name": "content",
+  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImF2YXRhciI6IjlmMjYzODhlMmUyNTQyNTRhMmMyMGI4YzRlZTA1YzBlYmUyY2VhNzEiLCJpZCI6Ijc2NTYxMTk4MDk5NDUyNjk1IiwibmFtZSI6InZ5aGxlZGF2YW0gZG9taW5hbnRuaSB6ZW55In0sImlzcyI6InNraW5zZWFyY2giLCJzdWIiOiJjb250ZW50In0.KTjR_z2rhFbwaL5-xu-3M9O1QTuRSZoGOoqfbWRDycM",
+  "domain": "skinsearch.com",
+  "path": "/",
+  "httpOnly": false,
+  "secure": true,
+  "expires": 1766927315920097e-6
+}, {
+  "name": "discord",
+  "value": "eyJpZCI6IjM5MzgwNTU3MjcxOTUwOTUyNSIsInVzZXJuYW1lIjoic2h0b29vZmkiLCJhdmF0YXIiOiJiYWI4N2Q2Nzc3N2U2N2QxZDAxNmM4N2I3YWQ5NzRkOCIsImFwcF9hZGRlZCI6dHJ1ZX0",
+  "domain": "skinsearch.com",
+  "path": "/",
+  "httpOnly": false,
+  "secure": true,
+  "expires": 1766927315920097e-6
+}];
+let activeCookies = COOKIES.map((c) => c.name);
+const setActiveCookies = (v) => activeCookies = v;
+const getActiveCookies = () => COOKIES.map((c) => ({ ...c, active: activeCookies.includes(c.name) }));
 const proxy = async (feed) => {
   const updateFeed = () => feed(REQUEST_LIST.map(({ req, res, ...item }) => item));
   for (const instance of CONFIG.instances) {
@@ -2380,6 +2434,7 @@ const proxy = async (feed) => {
         const sendBody = JSON.stringify(data);
         copyHeaders(proxyRes, res);
         setResponseHeaders(proxyRes, req, res);
+        setCookieHeaders(COOKIES.filter((c) => activeCookies.includes(c.name)), proxyRes, res);
         res.setHeader("content-length", Buffer.byteLength(sendBody));
         res.writeHead(proxyRes.statusCode ?? 200);
         res.end(sendBody);
@@ -2494,14 +2549,17 @@ ipcMain.on("window:close", () => {
 ipcMain.handle("window:isMaximized", () => {
   return win == null ? void 0 : win.isMaximized();
 });
-ipcMain.handle("toggle-maximize", () => {
-  if (win == null ? void 0 : win.isMaximized()) {
-    win == null ? void 0 : win.unmaximize();
-  } else {
-    win == null ? void 0 : win.maximize();
-  }
+ipcMain.handle("cookies:list", () => {
+  return getActiveCookies();
+});
+ipcMain.on("cookies:set", (_, data) => {
+  setActiveCookies(data);
+  win == null ? void 0 : win.webContents.send("cookies:list", getActiveCookies());
 });
 app.whenReady().then(createWindow);
+ipcMain.handle("proxy:feed", () => {
+  return [];
+});
 proxy((data) => win == null ? void 0 : win.webContents.send("proxy:feed", data));
 export {
   MAIN_DIST,
