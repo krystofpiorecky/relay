@@ -13,19 +13,17 @@ function App() {
       page={page}
       onPageChange={setPage}
     />
-    <main>
-      {page === "feed" && 
-        <>
-          <section>
-            nav
-          </section>
-          <Feed />
-        </>
-      }
-      {page === "cookies" && 
-        <Cookies />
-      }
-    </main>
+    {page === "feed" && 
+      <main>
+        <section>
+          nav
+        </section>
+        <Feed />
+      </main>
+    }
+    {page === "cookies" && 
+      <Cookies />
+    }
   </>
 }
 
