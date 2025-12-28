@@ -2,6 +2,7 @@ import { Checkbox } from "@components/Checkbox";
 import "./Cookies.scss";
 import { bridge, useBridgeState } from "@utilities/bridge";
 import { Icon } from "@iconify/react";
+import { Table } from "@components/Table";
 
 type CookieSchema = {
   name: string
@@ -14,26 +15,6 @@ type CookieSchema = {
   active: true
 };
 
-const COL_WIDTHS = [
-  150,
-  400,
-  150,
-  150,
-  100,
-  100,
-  100,
-];
-
-const COL_NAMES: (keyof CookieSchema)[] = [
-  "name",
-  "value",
-  "expires",
-  "domain",
-  "path",
-  "httpOnly",
-  "secure"
-];
-
 export const Cookies = () => {
   const [ bridgeItems ] = useBridgeState<CookieSchema[]>("proxy:cookies", []);
 
@@ -42,7 +23,19 @@ export const Cookies = () => {
       <Icon icon="mingcute:add-fill" />
       New Cookie
     </button>
-    <header>
+    <Table
+      cols={[
+        { name: "name", width: 150, stick: "start" },
+        { name: "value", width: 400  },
+        { name: "expires", width: 150, },
+        { name: "domain", width: 150, },
+        { name: "path", width: 100, },
+        { name: "httpOnly", width: 100 },
+        { name: "secure", width: 100 },
+      ]}
+      items={bridgeItems}
+    />
+    {/* <header>
       <Checkbox
         value={false}
         onChange={() => {
@@ -84,26 +77,6 @@ export const Cookies = () => {
           )}
         </div>
       )}
-    </div>
+    </div> */}
   </div>
 }
-
-type Props = {
-  value: string,
-  onChange: (v: string) => void,
-  style?: React.CSSProperties
-};
-
-const CellInput = ({ value, onChange, style }: Props) => {
-  return <div className="cell-input">
-    <input 
-      value={value}
-      onInput={e => onChange((e.target as HTMLInputElement).value)}
-      spellCheck={false}
-      autoCorrect="off"
-      autoCapitalize="off"
-      autoComplete="off"
-      style={style}
-    />
-  </div>
-};
