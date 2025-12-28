@@ -1,5 +1,6 @@
 import { Feed } from '@components/Feed';
 import { Cookies } from '@components/Cookies';
+import { Cache } from '@components/Cache';
 import { Titlebar } from '@components/Titlebar';
 import './App.css';
 import { useState } from 'react';
@@ -21,9 +22,8 @@ function App() {
         <Feed />
       </main>
     }
-    {page === "cookies" && 
-      <Cookies />
-    }
+    {page === "cookies" && <Cookies />}
+    {page === "cache" && <Cache />}
   </>
 }
 

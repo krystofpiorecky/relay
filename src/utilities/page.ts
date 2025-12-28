@@ -1,3 +1,4 @@
 export type Page =
   | "feed"
-  | "cookies";
+  | "cookies"
+  | "cache";

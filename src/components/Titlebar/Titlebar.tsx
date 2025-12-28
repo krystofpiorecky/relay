@@ -27,6 +27,10 @@ export const Titlebar = ({ page, onPageChange }: Props) => {
         <Icon icon="mingcute:cookie-fill" />
         Cookies
       </button>
+      <button onClick={() => onPageChange("cache")} data-active={page === "cache"}>
+        <Icon icon="mingcute:storage-fill" />
+        Cache
+      </button>
     </nav>
     <div className="titlebar-drag-region"></div>
     <div className="titlebar-buttons">
