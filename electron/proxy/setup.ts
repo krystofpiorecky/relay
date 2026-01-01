@@ -3,6 +3,7 @@ import { Proxy } from "./proxy";
 import { COOKIES } from "./cookies";
 import { getSetupConfig } from "./config";
 import url from "url";
+import { getCacheTtree } from "./cache";
 
 const feed: any[] = [];
 
@@ -72,4 +73,6 @@ export const setupProxy = (win: BrowserWindow) => {
     proxy.cookies = COOKIES.map(c => ({ ...c, active: data.includes(c.name) }))
     win.webContents.send("proxy:cookies", proxy.cookies)
   });
+
+  ipcMain.handle("cache:tree", () => getCacheTtree());
 };

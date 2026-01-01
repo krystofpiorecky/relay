@@ -22,9 +22,9 @@ export const Table = <K extends string>({ cols, items }: Props<K>) => {
           
         }}
       /> */}
-      {[startCols, middleCols, endCols].map(group => {
+      {[startCols, middleCols, endCols].map((group, index) => {
           if (group.length === 0) return;
-          return <div className="group" data-group={group[0].stick}>
+          return <div className="group" data-group={group[0].stick} key={index}>
             {group.map(col => 
               <div
                 key={col.name}
@@ -49,9 +49,9 @@ export const Table = <K extends string>({ cols, items }: Props<K>) => {
             // );
           }}
         /> */}
-        {[startCols, middleCols, endCols].map(group => {
+        {[startCols, middleCols, endCols].map((group, index) => {
           if (group.length === 0) return;
-          return <div className="group" data-group={group[0].stick}>
+          return <div className="group" data-group={group[0].stick} key={index}>
             {group.map(col => <CellInput
               key={col.name}
               value={item[col.name].toString()}

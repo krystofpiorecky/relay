@@ -6,11 +6,13 @@ import { getConfig, OutputSetupConfigSchema } from "./config";
 import { EventHandler } from "@_utilities/event-handler";
 import { copyHeaders, setCookieHeaders, setFullHeaders, setResponseHeaders } from "./headers";
 import { handleRedirect } from "./redirect";
-import { safeParse } from "@_utilities/file";
+import { safeParse, writeJSON } from "@_utilities/file";
 import { CookieSchema } from "./cookies";
+import { cachePath, handleCacheRead } from "./cache";
 
 type Events = {
   "request:received": { req: http.IncomingMessage, res: http.ServerResponse },
+  "proxy:cache:hit": { req: http.IncomingMessage, res: http.ServerResponse },
   "proxy:sent": { proxyReq: http.ClientRequest, req: http.IncomingMessage },
   "proxy:received": { proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse },
   "request:responded": { proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse },
@@ -45,9 +47,10 @@ export class ProxyInstance extends EventHandler<Events> {
       if (config.delay > 0)
         await new Promise(r => setTimeout(r, config.delay));
 
-      // if (await handleCacheRead(this.config, config, req, res)) {
-      //   return;
-      // }
+      if (await handleCacheRead(this.config, config, req, res)) {
+        this.invoke("proxy:cache:hit", { req, res });
+        return;
+      }
 
       this.proxyServer.web(req, res, { selfHandleResponse: true });
     }).listen(this.config.port);
@@ -93,9 +96,10 @@ export class ProxyInstance extends EventHandler<Events> {
       }
   
       const content = Buffer.concat(chunks).toString("utf8");
-      const data = safeParse(content);
+      const data = safeParse<any>(content);
 
       const requestUrl = url.parse(req.url || "", true).pathname;
+      const method = String(req.method || "").toUpperCase();
       const config = getConfig(this.config.key, requestUrl);
 
       if (this.config.log) {
@@ -103,7 +107,7 @@ export class ProxyInstance extends EventHandler<Events> {
       }
 
       // if (config.cache.write)
-      //   await writeJSON(cachePath(instance.key, requestUrl!), data);
+      await writeJSON(cachePath(this.config.key, requestUrl!, method), data);
 
       const sendBody = JSON.stringify(data);
       copyHeaders(proxyRes, res);

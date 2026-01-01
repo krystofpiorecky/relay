@@ -1,9 +1,9 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { ipcMain, app, BrowserWindow } from "electron";
+import { app, ipcMain, BrowserWindow } from "electron";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
+import path$1, { join as join$1 } from "node:path";
 import require$$0$1 from "http";
 import require$$1$2 from "https";
 import require$$1 from "util";
@@ -12,8 +12,9 @@ import require$$3 from "stream";
 import require$$4 from "assert";
 import require$$1$1 from "tty";
 import require$$0 from "os";
-import "fs";
-import "path";
+import fs, { promises } from "fs";
+import path, { join, parse, basename } from "path";
+import fs$1 from "fs/promises";
 class EventHandler {
   constructor() {
     __publicField(this, "handlers", {});
@@ -459,7 +460,7 @@ function requireMs() {
     options = options || {};
     var type = typeof val;
     if (type === "string" && val.length > 0) {
-      return parse(val);
+      return parse2(val);
     } else if (type === "number" && isFinite(val)) {
       return options.long ? fmtLong(val) : fmtShort(val);
     }
@@ -467,7 +468,7 @@ function requireMs() {
       "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
     );
   };
-  function parse(str) {
+  function parse2(str) {
     str = String(str);
     if (str.length > 100) {
       return;
@@ -2104,8 +2105,8 @@ var httpProxy$2 = ProxyServer;
  *          
  *          Dante - The Divine Comedy (Canto III)
  */
-var httpProxy = httpProxy$2;
-const httpProxy$1 = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy);
+var httpProxy$1 = httpProxy$2;
+const httpProxy = /* @__PURE__ */ getDefaultExportFromCjs(httpProxy$1);
 const globToRegex = (pattern) => {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const regex = "^" + escaped.replace(/\*/g, ".*") + "$";
@@ -2125,7 +2126,52 @@ function deepMerge(original, overwrite) {
   }
   return original;
 }
-const config = { "default": { "target": "skinsearch.com", "cache": { "write": true, "read": false } }, "main": { "port": 9991, "log": true, "endpoints": [{ "paths": "/feed, /api/feed, /api/ac", "cache": false }, { "paths": "/api/item/*", "cache": { "read": false } }, { "paths": "/api/inventory/" }] }, "s3": { "target": "s3.skinsearch.com", "port": 9992, "cache": false }, "status": { "prefix": "status", "port": 9993 }, "watchlist": { "prefix": "watchlist", "port": 9994, "log": true } };
+const config = {
+  "default": {
+    "target": "skinsearch.dev",
+    "cache": {
+      "write": true,
+      "read": false
+    }
+  },
+  "main": {
+    "port": 9991,
+    "log": true,
+    "endpoints": [
+      {
+        "paths": "/feed, /api/feed, /api/ac",
+        "cache": false
+      },
+      {
+        "paths": "/api/item/*",
+        "cache": {
+          "read": false
+        }
+      },
+      {
+        "paths": "/api/inventory/"
+      }
+    ]
+  },
+  "s3": {
+    "target": "s3.skinsearch.com",
+    "port": 9992,
+    "cache": false
+  },
+  "status": {
+    "prefix": "status",
+    "port": 9993
+  },
+  "watchlist": {
+    "prefix": "watchlist",
+    "port": 9994,
+    "log": true,
+    "cache": {
+      "write": true,
+      "read": true
+    }
+  }
+};
 const defaultConfig = {
   target: "skinsearch.dev",
   delay: 0,
@@ -2262,12 +2308,67 @@ const handleRedirect = (instance, req, res) => {
   }
   return false;
 };
+const readJSON = async (filepath) => {
+  try {
+    const data = await promises.readFile(filepath, "utf-8");
+    return safeParse(data);
+  } catch (e) {
+    return null;
+  }
+};
+const writeJSON = async (filepath, data) => writePlain(filepath, JSON.stringify(data, null, 2));
+const writePlain = async (filepath, data) => {
+  const dir = path.dirname(filepath);
+  await promises.mkdir(dir, { recursive: true });
+  await promises.writeFile(filepath, data, "utf-8");
+};
 const safeParse = (text) => {
   try {
     return JSON.parse(text);
   } catch (e) {
     return null;
   }
+};
+const cacheDir = join(app.getPath("userData"), "proxy_service", "cache");
+const cachePath = (instanceKey, url2, method) => {
+  let parts = url2.split("/").filter((x) => !!x).map((x) => encodeURIComponent(x));
+  parts.push(method);
+  return join(
+    cacheDir,
+    instanceKey,
+    parts.join("/") + ".json"
+  );
+};
+const handleCacheRead = async (instance, config2, req, res) => {
+  if (!config2.cache.read)
+    return false;
+  const requestUrl = url$2.parse(req.url || "", true).pathname;
+  const method = String(req.method || "").toUpperCase();
+  const data = await readJSON(cachePath(instance.key, requestUrl, method));
+  if (!data)
+    return false;
+  setFullHeaders(req, res);
+  res.setHeader("Content-Type", "application/json");
+  res.writeHead(200);
+  res.end(JSON.stringify(data));
+  return true;
+};
+const getCacheTtree = () => getCacheSubtree(cacheDir);
+const getCacheSubtree = (dirPath) => {
+  const stats = fs.statSync(dirPath);
+  const isFile = stats.isFile();
+  const name = isFile ? parse(dirPath).name : basename(dirPath);
+  const node2 = {
+    name,
+    path: dirPath,
+    type: isFile ? "file" : "directory"
+  };
+  if (isFile)
+    return node2;
+  node2.children = fs.readdirSync(dirPath).map(
+    (child) => getCacheSubtree(join(dirPath, child))
+  );
+  return node2;
 };
 class ProxyInstance extends EventHandler {
   constructor() {
@@ -2307,10 +2408,12 @@ class ProxyInstance extends EventHandler {
         const content = Buffer.concat(chunks).toString("utf8");
         const data = safeParse(content);
         const requestUrl = url$2.parse(req.url || "", true).pathname;
+        const method = String(req.method || "").toUpperCase();
         const config2 = getConfig(this.config.key, requestUrl);
         if (this.config.log) {
           console.log(`[${this.config.key} < ${requestUrl}] ${config2.cache.write ? "CACHE-W" : ""}`);
         }
+        await writeJSON(cachePath(this.config.key, requestUrl, method), data);
         const sendBody = JSON.stringify(data);
         copyHeaders(proxyRes, res);
         setResponseHeaders(proxyRes, req, res);
@@ -2335,7 +2438,7 @@ class ProxyInstance extends EventHandler {
   setConfig(config2) {
     console.log(`Launching proxy ${config2.target}::${config2.port}`);
     this.config = config2;
-    this.proxyServer = httpProxy$1.createProxyServer({
+    this.proxyServer = httpProxy.createProxyServer({
       target: "https://" + this.config.target,
       agent: require$$1$2.globalAgent,
       headers: {
@@ -2350,6 +2453,10 @@ class ProxyInstance extends EventHandler {
       const config22 = getConfig(this.config.key, requestUrl);
       if (config22.delay > 0)
         await new Promise((r) => setTimeout(r, config22.delay));
+      if (await handleCacheRead(this.config, config22, req, res)) {
+        this.invoke("proxy:cache:hit", { req, res });
+        return;
+      }
       this.proxyServer.web(req, res, { selfHandleResponse: true });
     }).listen(this.config.port);
     this.proxyServer.on("proxyReq", this.handleProxyReq);
@@ -2375,6 +2482,10 @@ class Proxy2 extends EventHandler {
         (e) => this.invoke("request:received", { instance: instanceConfig.key, ...e })
       );
       instance.on(
+        "proxy:cache:hit",
+        (e) => this.invoke("proxy:cache:hit", { instance: instanceConfig.key, ...e })
+      );
+      instance.on(
         "proxy:sent",
         (e) => this.invoke("proxy:sent", { instance: instanceConfig.key, ...e })
       );
@@ -2389,42 +2500,43 @@ class Proxy2 extends EventHandler {
     }
   }
 }
+const expires = Date.now() + 30 * 24 * 60 * 60 * 1e3;
 const COOKIES = [{
   "name": "cf_clearance",
   "value": "NeHtWi8OumdFncpPWjEfs3IrhTfSNEl1s6M_dLMZCps-1760533096-1.2.1.1-2.8i97vJ3yIi0BabnfudDj6aJdoECsnTigMjnMs73_ayHCHmmqvvo6uPxMe.guotlhIn1ASkb.d02GblJc4ORHN1YaEADuPjHbfK_0O50H.WfVmBCPBcT_3v7Qem4N29XAAS5LegrqvLyebagT5U7Bu.6nIDpnbKrTu0tqwU61zvKgA_XWlsc9NKUEwWPmRlpXZ3xYHo_CXDbmdbcQ8AhcJiRhHpozDO6v0uiAYbbc8",
-  "domain": ".skinsearch.com",
+  "domain": ".skinsearch.dev",
   "path": "/",
   "httpOnly": true,
   "secure": true,
   "sameSite": "None",
-  "expires": 1792069097565749e-6,
+  "expires": expires,
   active: true
 }, {
   "name": "identity",
   "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNzY1NjExOTgwOTk0NTI2OTUifSwiaXNzIjoic2tpbnNlYXJjaCIsInN1YiI6ImlkZW50aXR5In0.1GUmVVlxxS4u9--R1pzf-om9cb9q9Mgi7mnjWIwmr74",
-  "domain": "skinsearch.com",
+  "domain": "skinsearch.dev",
   "path": "/",
   "httpOnly": true,
   "secure": true,
-  "expires": 1766927315920051e-6,
+  "expires": expires,
   active: true
 }, {
   "name": "content",
-  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImF2YXRhciI6IjlmMjYzODhlMmUyNTQyNTRhMmMyMGI4YzRlZTA1YzBlYmUyY2VhNzEiLCJpZCI6Ijc2NTYxMTk4MDk5NDUyNjk1IiwibmFtZSI6InZ5aGxlZGF2YW0gZG9taW5hbnRuaSB6ZW55In0sImlzcyI6InNraW5zZWFyY2giLCJzdWIiOiJjb250ZW50In0.KTjR_z2rhFbwaL5-xu-3M9O1QTuRSZoGOoqfbWRDycM",
-  "domain": "skinsearch.com",
+  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImF2YXRhciI6Ijg0NTQ0YzNlMWY4MjBiZjdlY2VhMTI4ZmYwNjI4MjIzNzIzYWZhM2MiLCJpZCI6Ijc2NTYxMTk4MDk5NDUyNjk1IiwibmFtZSI6InZ5aGxlZGF2YW0gZG9taW5hbnRuaSB6ZW55In0sImlzcyI6InNraW5zZWFyY2giLCJzdWIiOiJjb250ZW50In0.qsNMU8Eszs8bNpe_uFyrQhnG2lgMvH-zNQoW_kHfG6E",
+  "domain": "skinsearch.dev",
   "path": "/",
   "httpOnly": false,
   "secure": true,
-  "expires": 1766927315920097e-6,
+  "expires": expires,
   active: true
 }, {
   "name": "discord",
   "value": "eyJpZCI6IjM5MzgwNTU3MjcxOTUwOTUyNSIsInVzZXJuYW1lIjoic2h0b29vZmkiLCJhdmF0YXIiOiJiYWI4N2Q2Nzc3N2U2N2QxZDAxNmM4N2I3YWQ5NzRkOCIsImFwcF9hZGRlZCI6dHJ1ZX0",
-  "domain": "skinsearch.com",
+  "domain": "skinsearch.dev",
   "path": "/",
   "httpOnly": false,
   "secure": true,
-  "expires": 1766927315920097e-6,
+  "expires": expires,
   active: true
 }];
 const feed = [];
@@ -2485,13 +2597,14 @@ const setupProxy = (win2) => {
     proxy.cookies = COOKIES.map((c) => ({ ...c, active: data.includes(c.name) }));
     win2.webContents.send("proxy:cookies", proxy.cookies);
   });
+  ipcMain.handle("cache:tree", () => getCacheTtree());
 };
-const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path.join(__dirname$1, "..");
+const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
+process.env.APP_ROOT = path$1.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+const MAIN_DIST = path$1.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path$1.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win;
 function createWindow() {
   win = new BrowserWindow({
@@ -2500,9 +2613,9 @@ function createWindow() {
     frame: false,
     transparent: true,
     titleBarStyle: "hidden",
-    icon: path.join(process.env.VITE_PUBLIC, "transparent-logo.svg"),
+    icon: path$1.join(process.env.VITE_PUBLIC, "transparent-logo.svg"),
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
+      preload: path$1.join(__dirname$1, "preload.mjs")
     }
   });
   win.on("maximize", () => {
@@ -2519,7 +2632,7 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
+    win.loadFile(path$1.join(RENDERER_DIST, "index.html"));
   }
   setupProxy(win);
 }
@@ -2550,6 +2663,12 @@ ipcMain.on("window:close", () => {
 });
 ipcMain.handle("window:isMaximized", () => {
   return win == null ? void 0 : win.isMaximized();
+});
+ipcMain.handle("file:content", async (_, filePath) => {
+  return await fs$1.readFile(join$1(app.getPath("userData"), "proxy_service", filePath), "utf-8");
+});
+ipcMain.on("file:content", async (_, content, filePath) => {
+  await fs$1.writeFile(join$1(app.getPath("userData"), "proxy_service", filePath), content, "utf-8");
 });
 app.whenReady().then(createWindow);
 export {

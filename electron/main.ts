@@ -1,8 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 // import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+import path, { join } from 'node:path'
 import { setupProxy } from './proxy/setup'
+import fs from "fs/promises";
 
 // const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -103,6 +104,14 @@ ipcMain.on("window:close", () => {
 
 ipcMain.handle("window:isMaximized", () => {
   return win?.isMaximized();
+});
+
+ipcMain.handle("file:content", async (_, filePath: string) => {
+  return await fs.readFile(join(app.getPath("userData"), "proxy_service", filePath), "utf-8");
+});
+
+ipcMain.on("file:content", async (_, content: string, filePath: string) => {
+  await fs.writeFile(join(app.getPath("userData"), "proxy_service", filePath), content, "utf-8");
 });
 
 app.whenReady().then(createWindow)

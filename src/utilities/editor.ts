@@ -25,8 +25,8 @@ export const defineTheme = (monaco: any) => {
       "editorBracketHighlight.foreground3": "#939293",
       "editorBracketHighlight.foreground4": "#939293",
       "editorBracketHighlight.foreground5": "#939293",
-      "editorBracketHighlight.foreground6": "#939293",
-    },
+      "editorBracketHighlight.foreground6": "#939293"
+    }
   });
 };
 
@@ -34,5 +34,7 @@ export const editorOptions = {
   minimap: { enabled: false },
   bracketPairColorization: { enabled: false },
   tabSize: 2,
-  scrollBeyondLastLine: false
+  scrollBeyondLastLine: false,
+  stickyScroll: { enabled: false },
+  stickyTabStops: false,
 };

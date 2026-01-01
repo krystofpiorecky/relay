@@ -5,7 +5,8 @@ import { EventHandler } from "@_utilities/event-handler";
 import { ProxyInstance } from "./instance";
 
 type Events = {
-  "request:received": { instance: string, req: http.IncomingMessage, res: http.ServerResponse }
+  "request:received": { instance: string, req: http.IncomingMessage, res: http.ServerResponse },
+  "proxy:cache:hit": { instance: string, req: http.IncomingMessage, res: http.ServerResponse },
   "proxy:sent": { instance: string, proxyReq: http.ClientRequest, req: http.IncomingMessage },
   "proxy:received": { instance: string, proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse },
   "request:responded": { instance: string, proxyRes: http.IncomingMessage, req: http.IncomingMessage, res: http.ServerResponse },
@@ -28,6 +29,9 @@ export class Proxy extends EventHandler<Events> {
 
       instance.on("request:received", e =>
         this.invoke("request:received", { instance: instanceConfig.key, ...e })
+      );
+      instance.on("proxy:cache:hit", e =>
+        this.invoke("proxy:cache:hit", { instance: instanceConfig.key, ...e })
       );
       instance.on("proxy:sent", e =>
         this.invoke("proxy:sent", { instance: instanceConfig.key, ...e })

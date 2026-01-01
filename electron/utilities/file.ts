@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-export const readJSON = async <T>(filepath: string): Promise<T | null> => {
+export const readJSON = async <T = any>(filepath: string): Promise<T | null> => {
   try {
     const data = await fs.readFile(filepath, "utf-8");
     return safeParse<T>(data);
